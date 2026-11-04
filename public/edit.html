@@ -1,0 +1,55 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>資料清理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.date-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 16px;max-height:220px;overflow:auto}
+.date-chip{border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:var(--panel);font-size:.92em;cursor:default}
+.date-chip b{color:var(--gold,#c9a45c)}
+.danger{color:#e88}
+#confirm{font-family:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:4px 8px}
+.preview{margin:12px 0;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.preview strong{color:#e88}
+.meta label{margin-right:1em}
+</style>
+</head><body>
+<header>
+  <a href="/">戰績查詢</a>
+  <a href="/upload.html">上傳戰績</a>
+  <a href="/edit.html"><strong>資料清理</strong></a>
+  <a id="adminLink" href="/admin.html" hidden>成員名單</a>
+  <span class="sp"></span>
+  <span id="who"></span>
+  <a href="/api/auth/logout">登出</a>
+</header>
+<main id="gate" hidden>
+  <p>此頁需要登入，且帳號必須已被管理員加入白名單。</p>
+  <p><a href="/api/auth/login">使用 Discord 登入</a></p>
+</main>
+<main id="app" hidden>
+  <h2>批次刪除舊戰績</h2>
+  <p class="hint">Cloudflare D1 有容量上限。可刪除指定日期區間的場次與玩家戰績以釋出空間。<b>此操作無法復原。</b></p>
+
+  <h3>資料庫中已有的日期</h3>
+  <p class="hint" id="summary">載入中…</p>
+  <div class="date-list" id="dateList"></div>
+  <button type="button" id="refresh">重新掃描</button>
+
+  <h3>選擇要刪除的區間</h3>
+  <div class="meta">
+    <label>起始日 <input type="date" id="from"></label>
+    <label>結束日 <input type="date" id="to"></label>
+  </div>
+  <div class="preview" id="preview">請選擇起訖日期，將顯示會被刪除的場次與人數。</div>
+
+  <p>
+    請在下方輸入 <code>confirm</code> 以確認刪除：
+    <input id="confirm" type="text" autocomplete="off" placeholder="confirm" size="12">
+  </p>
+  <p>
+    <button type="button" id="doDelete" disabled>刪除區間內所有戰績</button>
+    <span id="msg" class="hint"></span>
+  </p>
+</main>
+<script src="edit.js"></script>
+</body></html>

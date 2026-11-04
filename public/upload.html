@@ -1,0 +1,53 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>上傳戰績</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+#dateDlg{border:1px solid var(--line);border-radius:8px;padding:1.2em 1.5em;background:var(--panel);color:var(--text);max-width:90vw}
+#dateDlg::backdrop{background:rgba(0,0,0,.55)}
+#dateDlg h3{margin:0 0 .6em;font-size:1.1em}
+#dateDlg .actions{margin-top:1em;display:flex;gap:.6em;justify-content:flex-end}
+</style>
+</head><body>
+<header>
+  <a href="/">戰績查詢</a>
+  <a href="/upload.html"><strong>上傳戰績</strong></a>
+  <a href="/edit.html">資料清理</a>
+  <a id="adminLink" href="/admin.html" hidden>成員名單</a>
+  <span class="sp"></span>
+  <span id="who"></span>
+  <a href="/api/auth/logout">登出</a>
+</header>
+<main id="gate" hidden><p>上傳戰績需要登入，且帳號必須已被管理員加入白名單。</p><p><a href="/api/auth/login">使用 Discord 登入</a></p></main>
+<main id="app" hidden>
+<h2>選擇截圖</h2>
+<button id="paste">📋 從剪貼簿貼上</button> <input type="file" id="file" accept="image/*">
+<label class="hint">模型 <select id="model">
+  <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+  <option value="gemini-3.1-flash-lite" selected>gemini-3.1-flash-lite</option>
+</select></label>
+<button id="run" disabled>AI 辨識</button> <span id="status" class="hint">截圖後直接按 Ctrl+V（Mac：⌘V）即可貼上。</span>
+<p class="hint">文字與數字由 AI 辨識，不需要框選。若想自動辨識職業與繼承/覺醒/開放圖示：在圖上<b>拖曳框住圖示那兩欄</b>（職業＋類型），上下蓋住所有資料列即可，<b>不必對準每個圖示</b>，系統會自動找出圖示位置，並依由上到下的順序對應每一列資料。框內請不要包含家門名稱文字。資料列數 <input id="rowCount" type="number" value="15" min="1" max="40" style="width:56px"> 僅供預覽，辨識後會自動更新；藍框＝職業圖示、橘框＝類型圖示。</p>
+<div class="stage"><canvas id="cv"></canvas></div>
+
+<h2>確認與修改</h2>
+<div class="meta">
+  <label>比賽時長(分:秒) <input id="dur" size="6" placeholder="35:00"></label>
+</div>
+<p class="hint">橘框＝空白或無法解析；紅框＝死亡時間＋生存時間與比賽時長不符。滑鼠移到紅框上會顯示建議值。數字可直接輸入「136萬」。按「上傳到資料庫」時會再請你選擇正確日期。</p>
+<div class="scroll"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
+<datalist id="classes"></datalist>
+<p><button id="submit">上傳到資料庫</button> <span id="result"></span></p>
+</main>
+
+<dialog id="dateDlg">
+  <h3>選擇這場的日期</h3>
+  <p class="hint" style="margin:.2em 0 .8em">請手動選擇正確日期（不會自動填入今天）</p>
+  <label>日期 <input type="date" id="dlgDate"></label>
+  <div class="actions">
+    <button type="button" id="dlgCancel">取消</button>
+    <button type="button" id="dlgOk">確認上傳</button>
+  </div>
+</dialog>
+
+<script src="icons.js"></script><script src="upload.js"></script></body></html>

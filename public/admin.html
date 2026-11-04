@@ -1,0 +1,191 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>成員名單管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="extra.css">
+<style>
+textarea{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:6px;font:inherit;max-width:100%}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:14px;padding:2px 4px 2px 10px;margin:3px;background:var(--panel)}
+.chip button{border:0;background:none;padding:0 6px;color:var(--dim);cursor:pointer}
+.chip .g{color:var(--dim);font-size:.85em}
+.sec{margin-top:1.6em}
+select,input[type=text]{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:4px 6px;font:inherit}
+</style></head><body>
+<header>
+  <a href="/">戰績查詢</a>
+  <a href="/upload.html">上傳戰績</a>
+  <a href="/edit.html">資料清理</a>
+  <a href="/admin.html"><strong>成員名單</strong></a>
+  <span class="sp"></span>
+  <span id="who"></span>
+  <a href="/api/auth/logout">登出</a>
+</header>
+<main id="gate" hidden><p>此頁僅限管理員。</p><p><a href="/api/auth/login">使用 Discord 登入</a></p></main>
+<main id="app" hidden>
+
+<section class="sec">
+  <h2>同步 Discord 可登入成員</h2>
+  <p class="hint">依 Bot 讀取伺服器中擁有指定身份組的使用者，寫入可登入名單（普通成員）。管理員帳號不會被降級或刪除。<br>
+  身份組 ID / 公會 ID 請在 <code>functions/api/auth/[action].js</code> 檔案頂部的 <code>CONFIG_GUILD_ID</code>、<code>CONFIG_ROLE_IDS</code> 修改（也可用環境變數覆蓋）。需已設定 <code>DISCORD_BOT_TOKEN</code>，且 Bot 已進服並開啟 Server Members Intent。</p>
+  <label class="hint"><input type="checkbox" id="syncPrune" checked> 同時移除已失去身份組的普通成員</label>
+  <br>
+  <button id="syncBtn" type="button">從 Discord 同步可登入成員</button>
+  <span id="syncMsg" class="hint"></span>
+</section>
+
+<section class="sec">
+  <h2>公會列表 <span id="gCount" class="hint"></span></h2>
+  <p class="hint">先建立公會，新增成員時可從下拉選單指定所屬公會。刪除公會不會刪成員，只會清掉他們的公會欄位。</p>
+  <input id="gName" type="text" placeholder="公會名稱" size="20">
+  <button id="gAdd">新增公會</button>
+  <span id="gMsg" class="hint"></span>
+  <div id="gList" style="margin-top:8px"></div>
+</section>
+
+<section class="sec">
+  <h2>成員名單 <span id="count" class="hint"></span></h2>
+  <p class="hint">AI 辨識家門名稱時會優先對照這份名單：讀到的名字與名單中某人只差一兩個字時，會修正成名單裡的寫法。名單以外的名字照原樣保留。</p>
+  <h3>批次新增</h3>
+  <label>所屬公會
+    <select id="addGuild"><option value="">（未指定）</option></select>
+  </label>
+  <br>
+  <textarea id="add" rows="6" cols="44" placeholder="每行一個家門名稱，也可用逗號、頓號分隔"></textarea><br>
+  <button id="addBtn">新增成員</button> <span id="msg" class="hint"></span>
+  <h3>目前名單</h3>
+  <input id="filter" placeholder="篩選名字或公會" size="24">
+  <label>只看公會
+    <select id="filterGuild"><option value="">全部</option></select>
+  </label>
+  <div id="list"></div>
+</section>
+
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const msg = t => { $('msg').textContent = t; };
+const gMsg = t => { $('gMsg').textContent = t; };
+
+let guilds = [], members = [];
+
+function fillGuildSelects() {
+  const opts = guilds.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+  $('addGuild').innerHTML = `<option value="">（未指定）</option>` + opts;
+  const cur = $('filterGuild').value;
+  $('filterGuild').innerHTML = `<option value="">全部</option>` + opts;
+  if (guilds.includes(cur)) $('filterGuild').value = cur;
+}
+
+function renderGuilds() {
+  $('gCount').textContent = `（共 ${guilds.length} 個）`;
+  $('gList').innerHTML = guilds.map(g =>
+    `<span class="chip">${esc(g)}<button data-gdel="${esc(g)}" title="刪除公會">✕</button></span>`
+  ).join('') || '<p class="hint">尚未建立公會</p>';
+  fillGuildSelects();
+}
+
+function renderMembers() {
+  const f = $('filter').value.trim().toLowerCase();
+  const fg = $('filterGuild').value;
+  const list = members.filter(m => {
+    if (fg && (m.guild || '') !== fg) return false;
+    if (!f) return true;
+    return m.name.toLowerCase().includes(f) || (m.guild || '').toLowerCase().includes(f);
+  });
+  $('count').textContent = `（共 ${members.length} 人` + (list.length !== members.length ? `，顯示 ${list.length}` : '') + '）';
+  $('list').innerHTML = list.map(m =>
+    `<span class="chip">${esc(m.name)}` +
+    (m.guild ? `<span class="g">· ${esc(m.guild)}</span>` : '') +
+    `<button data-del="${esc(m.name)}" title="刪除">✕</button></span>`
+  ).join('') || '<p class="hint">沒有名字</p>';
+}
+
+async function load() {
+  const r = await fetch('/api/members');
+  if (!r.ok) { msg('讀取失敗（需要管理員權限，或尚未執行 guilds 遷移）'); return; }
+  const j = await r.json();
+  // 相容舊版只回傳字串陣列
+  if (Array.isArray(j)) {
+    guilds = []; members = j.map(name => ({ name, guild: '' }));
+  } else {
+    guilds = j.guilds || [];
+    members = j.members || [];
+  }
+  renderGuilds();
+  renderMembers();
+}
+
+$('gAdd').onclick = async () => {
+  const name = $('gName').value.trim();
+  if (!name) return;
+  const r = await fetch('/api/members', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'guild', name })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return gMsg(j.error || '新增失敗');
+  $('gName').value = '';
+  gMsg(j.added ? `已新增公會「${name}」` : '公會已存在');
+  load();
+};
+
+$('gList').onclick = async e => {
+  const g = e.target.dataset.gdel;
+  if (!g || !confirm(`刪除公會「${g}」？\n（成員不會被刪，只會清掉所屬公會）`)) return;
+  const r = await fetch('/api/members?guild=' + encodeURIComponent(g), { method: 'DELETE' });
+  r.ok ? load() : gMsg('刪除失敗');
+};
+
+$('addBtn').onclick = async () => {
+  const names = $('add').value.split(/[\n,，、;；]+/).map(s => s.trim()).filter(Boolean);
+  if (!names.length) return;
+  const guild = $('addGuild').value;
+  const r = await fetch('/api/members', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'members', guild, names })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return msg(j.error || '新增失敗');
+  $('add').value = '';
+  msg(`已新增 ${j.added} 個（重複的會略過）`);
+  load();
+};
+
+$('list').onclick = async e => {
+  const n = e.target.dataset.del;
+  if (!n || !confirm(`從名單刪除「${n}」？`)) return;
+  const r = await fetch('/api/members?name=' + encodeURIComponent(n), { method: 'DELETE' });
+  r.ok ? load() : msg('刪除失敗');
+};
+
+$('filter').oninput = renderMembers;
+$('filterGuild').onchange = renderMembers;
+
+
+$('syncBtn').onclick = async () => {
+  const btn = $('syncBtn');
+  btn.disabled = true;
+  $('syncMsg').textContent = '同步中（伺服器較大時可能需數十秒）…';
+  try {
+    const r = await fetch('/api/auth/sync-role', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prune: $('syncPrune').checked }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) $('syncMsg').textContent = '失敗：' + (j.error || r.status);
+    else $('syncMsg').textContent = `完成：符合身份組 ${j.synced} 人，寫入變更 ${j.upsert_changes}，移除 ${j.removed || 0}`;
+  } catch (e) {
+    $('syncMsg').textContent = '失敗：' + e.message;
+  }
+  btn.disabled = false;
+};
+
+(async () => {
+  const me = await (await fetch('/api/auth/me')).json();
+  $('who').textContent = me ? (me.name || me.id) : '';
+  if (!me || me.role !== 'admin') { $('gate').hidden = false; return; }
+  $('app').hidden = false;
+  load();
+})();
+</script></body></html>
