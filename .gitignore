@@ -1,0 +1,10 @@
+node_modules/
+
+# Local Wrangler state, including the local database
+.wrangler/
+
+# Local secrets (template: .dev.vars.example)
+.dev.vars
+
+# Local config (template: wrangler.toml.example). See the note in that file before committing it.
+wrangler.toml

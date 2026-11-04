@@ -1,0 +1,15 @@
+# Local development settings. `npm run dev` copies this to wrangler.toml.
+#
+# wrangler.toml is git-ignored for now. Cloudflare Pages can treat a committed
+# wrangler.toml as the source of truth for the deployed site, so committing this
+# placeholder database ID could affect production.
+
+name = "bdo-local"
+pages_build_output_dir = "public"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bdo-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

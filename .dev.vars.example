@@ -1,0 +1,19 @@
+# Local secrets. `npm run dev` copies this to .dev.vars, which git ignores.
+# Restart the server after changing this file.
+
+# Signs local session cookies. Any value works locally.
+SESSION_SECRET=local-dev-secret
+
+# Optional: screenshot OCR on the upload page.
+# GEMINI_API_KEY=
+# GEMINI_MODEL=
+
+# Optional: real Discord login. Without these, use `npm run token` instead.
+# DISCORD_CLIENT_ID=
+# DISCORD_CLIENT_SECRET=
+
+# Optional: Discord member sync on the admin page.
+# DISCORD_BOT_TOKEN=
+# DISCORD_GUILD_ID=
+# DISCORD_MEMBER_ROLE_ID=
+# SYNC_SECRET=
