@@ -44,7 +44,7 @@ When you fix a bug, change its status and add the commit or PR.
 
 **Suggested fix:** Check the role in the middleware, so a new endpoint can't forget it. Have the handlers in `members.js` rely on the same check. `/api/auth/*` must stay exempt, because `sync-role` does its own check.
 
-**Decide first:** Are all of these meant to be admin-only? The UI says yes for upload and cleanup.
+**Intended behaviour:** The comments in the owner's schema say `member` is query-only and `admin` handles upload, cleanup and member management, so this is a bug. See [`0001_initial_schema.sql`](../migrations/0001_initial_schema.sql).
 
 ---
 
@@ -75,7 +75,7 @@ When you fix a bug, change its status and add the commit or PR.
 
 **Not reproduced:** Local D1 may not enforce the same limit, so a local test may not show it.
 
-**Suggested fix:** Use the same chunking for `matches`. Fixing BUG-4 at the same time would also make the delete all-or-nothing.
+**Suggested fix:** Use the same chunking for `matches`. Fixing BUG-4 at the same time would also make the delete all-or-nothing. The schema's `ON DELETE CASCADE` removes a match's stats automatically, so the separate `player_stats` delete may no longer be needed if production has the same foreign key.
 
 ---
 
@@ -129,7 +129,7 @@ When you fix a bug, change its status and add the commit or PR.
 
 These are missing pieces rather than bugs.
 
-- **Schema is inferred:** [`0001_initial_schema.sql`](../migrations/0001_initial_schema.sql) was reconstructed from the SQL in the code. Ask the owner to export the real schema and replace it.
+- **Schema may differ from production:** [`0001_initial_schema.sql`](../migrations/0001_initial_schema.sql) comes from the owner, but its header says it was compiled from the source code, so it may not be an export of the live database. The header also mentions a section for migrating existing databases, which isn't in the file.
 - **`wrangler.toml` is local only:** it's generated from [`wrangler.toml.example`](../wrangler.toml.example) with a placeholder database ID. Sharing the real one needs the owner's agreement, because Cloudflare Pages can treat a committed file as the source of truth for the deployed site.
 - **No tests or CI:** every change has to be checked by hand.
 - **Unknown deploy process:** we don't yet know if merging to `main` deploys the site, or how adding a root `package.json` affects a Cloudflare Pages Git build.
